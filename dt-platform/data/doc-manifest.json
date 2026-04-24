@@ -1,0 +1,133 @@
+[
+  {
+    "name": "workspace",
+    "isDir": true,
+    "path": "/Users/hua/Developer/workspace",
+    "children": [
+      {
+        "name": "cursorproject",
+        "isDir": true,
+        "path": "/Users/hua/Developer/workspace/cursorproject",
+        "children": [
+          {
+            "name": "docs",
+            "isDir": true,
+            "path": "/Users/hua/Developer/workspace/cursorproject/docs",
+            "children": [
+              {
+                "name": "superpowers",
+                "isDir": true,
+                "path": "/Users/hua/Developer/workspace/cursorproject/docs/superpowers",
+                "children": [
+                  {
+                    "name": "plans",
+                    "isDir": true,
+                    "path": "/Users/hua/Developer/workspace/cursorproject/docs/superpowers/plans",
+                    "children": [
+                      {
+                        "name": "2026-04-13-opencode-models-manager.md",
+                        "isDir": false,
+                        "path": "/Users/hua/Developer/workspace/cursorproject/docs/superpowers/plans/2026-04-13-opencode-models-manager.md",
+                        "ext": "md"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "specs",
+                    "isDir": true,
+                    "path": "/Users/hua/Developer/workspace/cursorproject/docs/superpowers/specs",
+                    "children": [
+                      {
+                        "name": "2026-04-13-opencode-models-manager-design.md",
+                        "isDir": false,
+                        "path": "/Users/hua/Developer/workspace/cursorproject/docs/superpowers/specs/2026-04-13-opencode-models-manager-design.md",
+                        "ext": "md"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "devTool",
+        "isDir": true,
+        "path": "/Users/hua/Developer/workspace/devTool",
+        "children": [
+          {
+            "name": "init.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/devTool/init.md",
+            "ext": "md"
+          }
+        ]
+      },
+      {
+        "name": "dev_tool",
+        "isDir": true,
+        "path": "/Users/hua/Developer/workspace/dev_tool",
+        "children": [
+          {
+            "name": "init.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/dev_tool/init.md",
+            "ext": "md"
+          }
+        ]
+      },
+      {
+        "name": "hua",
+        "isDir": true,
+        "path": "/Users/hua/Developer/workspace/hua",
+        "children": [
+          {
+            "name": "data",
+            "isDir": true,
+            "path": "/Users/hua/Developer/workspace/hua/data",
+            "children": [
+              {
+                "name": "resume_2025.md",
+                "isDir": false,
+                "path": "/Users/hua/Developer/workspace/hua/data/resume_2025.md",
+                "ext": "md"
+              }
+            ]
+          },
+          {
+            "name": "hua_2026_02.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/hua/hua_2026_02.md",
+            "ext": "md"
+          },
+          {
+            "name": "resume_2026.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/hua/resume_2026.md",
+            "ext": "md"
+          },
+          {
+            "name": "resume_2026_01.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/hua/resume_2026_01.md",
+            "ext": "md"
+          }
+        ]
+      },
+      {
+        "name": "python_project",
+        "isDir": true,
+        "path": "/Users/hua/Developer/workspace/python_project",
+        "children": [
+          {
+            "name": "Python_Guide_For_Android_Devs.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/python_project/Python_Guide_For_Android_Devs.md",
+            "ext": "md"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "id": "open-webui",
+      "name": "Open WebUI",
+      "icon": "fa-brands fa-pied-piper-hat",
+      "command": "open-webui serve",
+      "osProtocols": null,
+      "fallback": ""
+    }
+  ]
+}

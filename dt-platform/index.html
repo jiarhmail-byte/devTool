@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DT 开发平台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- 使用 Font Awesome CDN 提供简洁图标 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="app-body">
+  <div class="page-shell">
+    <div class="page-glow page-glow-left"></div>
+    <div class="page-glow page-glow-right"></div>
+  </div>
+  <div id="app">
+    <header class="app-header">
+      <div class="eyebrow">Developer Workspace</div>
+      <h1>DT 本地开发平台</h1>
+      <p class="subtitle">把日常工具和本地文档整理进一个清晰、顺手、足够轻的工作台。</p>
+      <div class="header-meta">
+        <span><i class="fa-solid fa-book-open"></i> 文档目录集中管理</span>
+        <span><i class="fa-solid fa-bolt"></i> 常用命令一键触达</span>
+        <span><i class="fa-solid fa-layer-group"></i> 为后续扩展预留结构</span>
+      </div>
+    </header>
+
+    <main class="dashboard-grid">
+      <section class="panel tools-panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-kicker">Tools</div>
+            <h2><i class="fa-solid fa-screwdriver-wrench"></i> 常用工具</h2>
+          </div>
+          <div class="panel-actions tool-panel-actions">
+            <button type="button" id="tool-settings-trigger" class="ghost-button">
+              <i class="fa-solid fa-pen-to-square"></i>
+              <span>管理工具</span>
+            </button>
+          </div>
+        </div>
+        <div id="tools-grid" class="tools-grid">
+            <!-- 工具按钮将渲染到这里 -->
+        </div>
+      </section>
+
+      <aside class="panel doc-panel full-width-panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-kicker">Docs</div>
+            <h2><i class="fa-solid fa-book-open"></i> 文档管理</h2>
+          </div>
+          <div class="panel-actions">
+            <button type="button" id="doc-settings-trigger" class="ghost-button">
+              <i class="fa-solid fa-sliders"></i>
+              <span>配置路径</span>
+            </button>
+          </div>
+        </div>
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="doc-search" placeholder="快速搜索文档名称..." autocomplete="off">
+        </div>
+        <div id="doc-tree-container" class="doc-tree-wrapper">
+            <!-- 文档树将渲染到这里 -->
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="doc-settings-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal="true"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="doc-settings-title">
+      <div class="modal-header">
+        <div>
+          <div class="panel-kicker">Settings</div>
+          <h3 id="doc-settings-title">文档路径配置</h3>
+        </div>
+        <button type="button" id="doc-settings-close" class="icon-button" aria-label="关闭">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="modal-desc">配置需要纳入筛选的本地目录。保存后会自动重新扫描 Markdown 文档。</p>
+      <div id="doc-settings-list" class="settings-list"></div>
+      <button type="button" id="doc-settings-add" class="ghost-button secondary">
+        <i class="fa-solid fa-plus"></i>
+        <span>新增路径</span>
+      </button>
+      <div id="doc-settings-feedback" class="modal-feedback hidden"></div>
+      <div class="modal-footer">
+        <button type="button" id="doc-settings-cancel" class="ghost-button secondary">取消</button>
+        <button type="button" id="doc-settings-save" class="primary-button">保存并刷新文档</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tool-settings-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-tool-modal="true"></div>
+    <div class="modal-dialog tool-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tool-settings-title">
+      <div class="modal-header">
+        <div>
+          <div class="panel-kicker">Tools</div>
+          <h3 id="tool-settings-title">常用工具配置</h3>
+        </div>
+        <button type="button" id="tool-settings-close" class="icon-button" aria-label="关闭">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="modal-desc">直接在界面里新增、编辑、删除工具项。图标支持 Font Awesome class，例如 `fa-solid fa-terminal`。</p>
+      <p class="modal-link-hint">
+        图标可在
+        <a href="https://fontawesome.com/search" target="_blank" rel="noopener noreferrer">Font Awesome Icons</a>
+        查询，复制对应 class 即可使用。
+      </p>
+      <div id="tool-settings-list" class="tool-settings-list"></div>
+      <button type="button" id="tool-settings-add" class="ghost-button secondary">
+        <i class="fa-solid fa-plus"></i>
+        <span>新增工具</span>
+      </button>
+      <div id="tool-settings-feedback" class="modal-feedback hidden"></div>
+      <div class="modal-footer">
+        <button type="button" id="tool-settings-cancel" class="ghost-button secondary">取消</button>
+        <button type="button" id="tool-settings-save" class="primary-button">保存并刷新工具</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 脚本加载顺序：必须保证依赖的脚本先加载 -->
+  <script src="js/config.js"></script>
+  <script src="js/tools.js"></script>
+  <script src="js/docs.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
