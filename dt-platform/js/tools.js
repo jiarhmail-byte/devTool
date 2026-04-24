@@ -60,7 +60,6 @@ function renderTools() {
         <span class="tool-name">${tool.name}</span>
         <span class="tool-command">${tool.command}</span>
       </span>
-      <span class="tool-arrow"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
     `;
 
     card.addEventListener('click', () => executeTool(tool));

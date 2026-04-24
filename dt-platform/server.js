@@ -13,6 +13,8 @@ const {
 const HOST = '127.0.0.1';
 const ROOT_DIR = __dirname;
 const DEFAULT_PORT = Number(process.env.PORT || 8080);
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434/api/generate';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b';
 const TOOL_SETTINGS_PATH = path.join(ROOT_DIR, 'data/tool-settings.json');
 const PROJECT_SETTINGS_PATH = path.join(ROOT_DIR, 'data/project-settings.json');
 
@@ -92,6 +94,50 @@ function readRequestBody(req) {
 
     req.on('end', () => resolve(body));
     req.on('error', reject);
+  });
+}
+
+function postJson(targetUrl, payload) {
+  return new Promise((resolve, reject) => {
+    const requestUrl = new URL(targetUrl);
+    const body = JSON.stringify(payload);
+    const request = http.request({
+      protocol: requestUrl.protocol,
+      hostname: requestUrl.hostname,
+      port: requestUrl.port,
+      path: `${requestUrl.pathname}${requestUrl.search}`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, (response) => {
+      let data = '';
+
+      response.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      response.on('end', () => {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          reject(new Error(`本地 LLM 请求失败: ${response.statusCode} ${data}`));
+          return;
+        }
+
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch (error) {
+          reject(new Error(`本地 LLM 返回内容无法解析: ${error.message}`));
+        }
+      });
+    });
+
+    request.on('error', (error) => {
+      reject(error);
+    });
+
+    request.write(body);
+    request.end();
   });
 }
 
@@ -325,6 +371,71 @@ async function pushProjectChanges(project) {
   await execFileAsync('git', ['push'], { cwd: project.path });
 }
 
+function normalizeCommitMessage(message) {
+  return String(message || '')
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/```/g, ''))
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .find((line) => !line.startsWith('#') && !line.startsWith('-') && !line.startsWith('*')) || '';
+}
+
+async function buildCommitGenerationPrompt(project) {
+  const [statusResult, statResult, diffResult] = await Promise.all([
+    execFileAsync('git', ['status', '--short'], { cwd: project.path }),
+    execFileAsync('git', ['diff', '--stat', 'HEAD'], { cwd: project.path }),
+    execFileAsync('git', ['diff', 'HEAD'], { cwd: project.path, maxBuffer: 4 * 1024 * 1024 })
+  ]);
+
+  const statusOutput = statusResult.stdout.trim();
+  const statOutput = statResult.stdout.trim();
+  const diffOutput = diffResult.stdout.trim();
+
+  if (!statusOutput) {
+    throw new Error('当前没有可提交的改动');
+  }
+
+  return `
+你是一个资深工程师，负责为 Git 改动生成 commit message。
+请严格遵守以下规则：
+1. 只输出一行 commit message
+2. 优先使用 Conventional Commits 风格，例如 feat/fix/refactor/docs/chore
+3. 内容要具体，不能空泛
+4. 不要输出解释、前后缀、引号、代码块
+
+项目名称: ${project.name}
+项目路径: ${project.path}
+
+Git status:
+${statusOutput}
+
+Diff stat:
+${statOutput || '(empty)'}
+
+Diff:
+${diffOutput.slice(0, 12000) || '(empty)'}
+  `.trim();
+}
+
+async function generateCommitMessage(project) {
+  const prompt = await buildCommitGenerationPrompt(project);
+  const result = await postJson(OLLAMA_URL, {
+    model: OLLAMA_MODEL,
+    prompt,
+    stream: false,
+    options: {
+      temperature: 0.2
+    }
+  });
+
+  const message = normalizeCommitMessage(result.response);
+  if (!message) {
+    throw new Error('本地 LLM 未返回有效的 commit message');
+  }
+
+  return message;
+}
+
 function serveStaticFile(reqPath, res) {
   const safePath = reqPath === '/' ? '/index.html' : reqPath;
   const filePath = path.normalize(path.join(ROOT_DIR, safePath));
@@ -531,6 +642,24 @@ async function handleProjectCommit(req, res) {
   }
 }
 
+async function handleProjectCommitMessage(req, res) {
+  try {
+    const rawBody = await readRequestBody(req);
+    const payload = rawBody ? JSON.parse(rawBody) : {};
+    const project = findProjectById(payload.id);
+
+    if (!project) {
+      sendJson(res, 404, { message: '未找到项目' });
+      return;
+    }
+
+    const message = await generateCommitMessage(project);
+    sendJson(res, 200, { message });
+  } catch (error) {
+    sendJson(res, 500, { message: error.stderr?.trim() || error.message });
+  }
+}
+
 async function handleProjectPush(req, res) {
   try {
     const rawBody = await readRequestBody(req);
@@ -611,6 +740,11 @@ function createServer() {
 
     if (requestUrl.pathname === '/api/projects/commit' && req.method === 'POST') {
       handleProjectCommit(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/projects/commit-message' && req.method === 'POST') {
+      handleProjectCommitMessage(req, res);
       return;
     }
 
