@@ -1,24 +1,100 @@
 /* ================================================= */
 /* 基础变量和重置 */
 /* ================================================= */
-:root {
-  --bg-app: #eef3f1;
-  --bg-card: rgba(255, 255, 255, 0.9);
-  --bg-soft: #f5f8f6;
-  --bg-strong: #123629;
-  --text-primary: #16231f;
-  --text-secondary: #62716b;
-  --text-muted: #8a9691;
-  --accent: #1d6b52;
-  --accent-strong: #0f4f3b;
-  --accent-soft: #dcefe7;
-  --border: rgba(22, 35, 31, 0.08);
-  --border-strong: rgba(29, 107, 82, 0.18);
-  --shadow-sm: 0 18px 40px rgba(18, 54, 41, 0.06);
-  --shadow-md: 0 30px 70px rgba(18, 54, 41, 0.11);
+
+/* 蓝色主题 (默认) */
+:root, [data-theme="blue"] {
+  --bg-app: #eef2f8;
+  --bg-card: #fff;
+  --bg-soft: #f5f7fb;
+  --bg-strong: #1a2744;
+  --text-primary: #000;
+  --text-secondary: #000;
+  --text-muted: #334155;
+  --accent: #3b82f6;
+  --accent-strong: #2563eb;
+  --accent-soft: #dbeafe;
+  --border: rgba(22, 32, 51, 0.08);
+  --border-strong: rgba(59, 130, 246, 0.18);
+  --shadow-sm: 0 18px 40px rgba(26, 39, 68, 0.06);
+  --shadow-md: 0 30px 70px rgba(26, 39, 68, 0.11);
+  --glow-left: rgba(147, 197, 253, 0.7);
+  --glow-right: rgba(191, 219, 254, 0.9);
+  --glow-bg-1: rgba(147, 197, 253, 0.28);
+  --glow-bg-2: rgba(191, 219, 254, 0.5);
+  --glow-bg-3: #f7f9fb;
   --radius: 22px;
   --radius-sm: 14px;
   --font-main: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+/* 紫色主题 */
+[data-theme="purple"] {
+  --bg-app: #f3eef8;
+  --bg-card: #fff;
+  --bg-soft: #f8f5fb;
+  --bg-strong: #2d1a44;
+  --text-primary: #000;
+  --text-secondary: #000;
+  --text-muted: #3730a3;
+  --accent: #8b5cf6;
+  --accent-strong: #7c3aed;
+  --accent-soft: #ede9fe;
+  --border: rgba(32, 22, 51, 0.08);
+  --border-strong: rgba(139, 92, 246, 0.18);
+  --shadow-sm: 0 18px 40px rgba(45, 26, 68, 0.06);
+  --shadow-md: 0 30px 70px rgba(45, 26, 68, 0.11);
+  --glow-left: rgba(196, 147, 253, 0.7);
+  --glow-right: rgba(219, 191, 254, 0.9);
+  --glow-bg-1: rgba(196, 147, 253, 0.28);
+  --glow-bg-2: rgba(219, 191, 254, 0.5);
+  --glow-bg-3: #f9f7fb;
+}
+
+/* 橙色主题 */
+[data-theme="orange"] {
+  --bg-app: #f8f3ee;
+  --bg-card: #fff;
+  --bg-soft: #fbf8f5;
+  --bg-strong: #442d1a;
+  --text-primary: #000;
+  --text-secondary: #000;
+  --text-muted: #3d2e0f;
+  --accent: #f97316;
+  --accent-strong: #ea580c;
+  --accent-soft: #ffedd5;
+  --border: rgba(51, 32, 22, 0.08);
+  --border-strong: rgba(249, 115, 22, 0.18);
+  --shadow-sm: 0 18px 40px rgba(68, 45, 26, 0.06);
+  --shadow-md: 0 30px 70px rgba(68, 45, 26, 0.11);
+  --glow-left: rgba(253, 196, 147, 0.7);
+  --glow-right: rgba(254, 219, 191, 0.9);
+  --glow-bg-1: rgba(253, 196, 147, 0.28);
+  --glow-bg-2: rgba(254, 219, 191, 0.5);
+  --glow-bg-3: #fbf9f7;
+}
+
+/* 深色主题 */
+[data-theme="dark"] {
+  --bg-app: #0f172a;
+  --bg-card: #1e293b;
+  --bg-soft: #1e293b;
+  --bg-strong: #020617;
+  --text-primary: #fff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --accent: #3b82f6;
+  --accent-strong: #60a5fa;
+  --accent-soft: rgba(59, 130, 246, 0.2);
+  --border: rgba(226, 232, 240, 0.08);
+  --border-strong: rgba(59, 130, 246, 0.3);
+  --shadow-sm: 0 18px 40px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 30px 70px rgba(0, 0, 0, 0.4);
+  --glow-left: rgba(59, 130, 246, 0.4);
+  --glow-right: rgba(96, 165, 250, 0.5);
+  --glow-bg-1: rgba(59, 130, 246, 0.15);
+  --glow-bg-2: rgba(96, 165, 250, 0.1);
+  --glow-bg-3: #0f172a;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -45,7 +121,6 @@ body {
   width: 380px;
   height: 380px;
   border-radius: 999px;
-  filter: blur(10px);
   opacity: 0.55;
 }
 
@@ -86,13 +161,12 @@ body {
   padding: 7px 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(29, 107, 82, 0.12);
+  border: 1px solid var(--border-strong);
   color: var(--accent-strong);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  backdrop-filter: blur(14px);
 }
 
 .app-header h1 {
@@ -195,7 +269,6 @@ body {
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.62);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(22px);
 }
 
 .doc-panel {
@@ -205,9 +278,8 @@ body {
 .panel::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset:0;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255,255,255,0.46), rgba(255,255,255,0));
   pointer-events: none;
 }
 
