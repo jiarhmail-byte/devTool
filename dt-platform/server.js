@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 
 const { APP_CONFIG } = require('./js/config.js');
 const {
@@ -13,6 +14,7 @@ const HOST = '127.0.0.1';
 const ROOT_DIR = __dirname;
 const DEFAULT_PORT = Number(process.env.PORT || 8080);
 const TOOL_SETTINGS_PATH = path.join(ROOT_DIR, 'data/tool-settings.json');
+const PROJECT_SETTINGS_PATH = path.join(ROOT_DIR, 'data/project-settings.json');
 
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -23,6 +25,38 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.txt': 'text/plain; charset=utf-8'
 };
+
+function execFileAsync(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(command, args, { maxBuffer: 1024 * 1024, ...options }, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+        return;
+      }
+
+      resolve({ stdout, stderr });
+    });
+  });
+}
+
+function slugify(value, fallback) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || fallback;
+}
+
+function ensureDataDirectory(filePath) {
+  const dirPath = path.dirname(filePath);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
 
 function isSubPath(targetPath, basePath) {
   const relativePath = path.relative(basePath, targetPath);
@@ -48,25 +82,34 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
-function normalizeToolId(name, index) {
-  const baseName = String(name || `tool-${index + 1}`)
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
 
-  return baseName || `tool-${index + 1}`;
+    req.on('data', (chunk) => {
+      body += chunk;
+    });
+
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+}
+
+function normalizeToolId(name, index) {
+  return slugify(name, `tool-${index + 1}`);
 }
 
 function normalizeTools(tools) {
-  return (tools || []).map((tool, index) => ({
-    id: tool.id || normalizeToolId(tool.name, index),
-    name: String(tool.name || '').trim(),
-    icon: String(tool.icon || 'fa-solid fa-screwdriver-wrench').trim(),
-    command: String(tool.command || '').trim(),
-    osProtocols: tool.osProtocols || null,
-    fallback: String(tool.fallback || '').trim()
-  })).filter((tool) => tool.name && tool.command);
+  return (tools || [])
+    .map((tool, index) => ({
+      id: tool.id || normalizeToolId(tool.name, index),
+      name: String(tool.name || '').trim(),
+      icon: String(tool.icon || 'fa-solid fa-screwdriver-wrench').trim(),
+      command: String(tool.command || '').trim(),
+      osProtocols: tool.osProtocols || null,
+      fallback: String(tool.fallback || '').trim()
+    }))
+    .filter((tool) => tool.name && tool.command);
 }
 
 function loadToolSettings() {
@@ -79,9 +122,7 @@ function loadToolSettings() {
 
     const content = fs.readFileSync(TOOL_SETTINGS_PATH, 'utf-8');
     const parsed = JSON.parse(content);
-    return {
-      tools: normalizeTools(parsed.tools)
-    };
+    return { tools: normalizeTools(parsed.tools) };
   } catch (error) {
     console.error(`⚠️ 读取工具配置失败，已回退默认配置: ${error.message}`);
     return { tools: defaultTools };
@@ -89,33 +130,199 @@ function loadToolSettings() {
 }
 
 function saveToolSettings(settings) {
-  const nextSettings = {
-    tools: normalizeTools(settings.tools)
-  };
-
-  const dirPath = path.dirname(TOOL_SETTINGS_PATH);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-
+  const nextSettings = { tools: normalizeTools(settings.tools) };
+  ensureDataDirectory(TOOL_SETTINGS_PATH);
   fs.writeFileSync(TOOL_SETTINGS_PATH, JSON.stringify(nextSettings, null, 2), 'utf-8');
   return nextSettings;
 }
 
-function readRequestBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
+function normalizeProject(project, index) {
+  const projectPath = path.resolve(String(project.path || '').trim());
+  const projectName = String(project.name || path.basename(projectPath)).trim();
+  const workspace = String(project.workspace || path.dirname(projectPath)).trim();
 
-    req.on('data', (chunk) => {
-      body += chunk;
-    });
+  return {
+    id: project.id || slugify(projectName, `project-${index + 1}`),
+    name: projectName,
+    path: projectPath,
+    workspace,
+    description: String(project.description || '').trim()
+  };
+}
 
-    req.on('end', () => {
-      resolve(body);
-    });
+function loadProjectSettings() {
+  try {
+    if (!fs.existsSync(PROJECT_SETTINGS_PATH)) {
+      return { projects: [] };
+    }
 
-    req.on('error', reject);
-  });
+    const content = fs.readFileSync(PROJECT_SETTINGS_PATH, 'utf-8');
+    const parsed = JSON.parse(content);
+    return {
+      projects: (parsed.projects || []).map(normalizeProject)
+    };
+  } catch (error) {
+    console.error(`⚠️ 读取项目配置失败: ${error.message}`);
+    return { projects: [] };
+  }
+}
+
+function saveProjectSettings(settings) {
+  const nextSettings = {
+    projects: (settings.projects || []).map(normalizeProject)
+  };
+
+  ensureDataDirectory(PROJECT_SETTINGS_PATH);
+  fs.writeFileSync(PROJECT_SETTINGS_PATH, JSON.stringify(nextSettings, null, 2), 'utf-8');
+  return nextSettings;
+}
+
+async function resolveGitRoot(projectPath) {
+  const { stdout } = await execFileAsync('git', ['rev-parse', '--show-toplevel'], { cwd: projectPath });
+  return stdout.trim();
+}
+
+async function ensureProjectIsGitRepo(projectPath) {
+  const resolvedPath = path.resolve(projectPath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`项目路径不存在: ${resolvedPath}`);
+  }
+
+  const stats = fs.statSync(resolvedPath);
+  if (!stats.isDirectory()) {
+    throw new Error(`项目路径不是目录: ${resolvedPath}`);
+  }
+
+  return resolveGitRoot(resolvedPath);
+}
+
+async function normalizeAndValidateProjects(projects) {
+  const normalizedProjects = [];
+
+  for (let index = 0; index < (projects || []).length; index += 1) {
+    const normalized = normalizeProject(projects[index], index);
+    const gitRoot = await ensureProjectIsGitRepo(normalized.path);
+    normalized.path = gitRoot;
+    normalized.workspace = String(normalized.workspace || path.dirname(gitRoot)).trim() || path.dirname(gitRoot);
+    normalizedProjects.push(normalized);
+  }
+
+  return normalizedProjects;
+}
+
+function parseGitStatus(stdout) {
+  const lines = stdout.split('\n').filter(Boolean);
+  const summaryLine = lines[0] || '';
+  const changedCount = Math.max(lines.length - 1, 0);
+  const branchMatch = summaryLine.match(/^## ([^.\s]+)(?:\.\.\.([^\s]+))?(?: \[(.+)\])?/);
+  let ahead = 0;
+  let behind = 0;
+
+  if (branchMatch && branchMatch[3]) {
+    const statusPart = branchMatch[3];
+    const aheadMatch = statusPart.match(/ahead (\d+)/);
+    const behindMatch = statusPart.match(/behind (\d+)/);
+    ahead = aheadMatch ? Number(aheadMatch[1]) : 0;
+    behind = behindMatch ? Number(behindMatch[1]) : 0;
+  }
+
+  return {
+    currentBranch: branchMatch ? branchMatch[1] : 'unknown',
+    upstream: branchMatch ? branchMatch[2] || '' : '',
+    ahead,
+    behind,
+    changedCount,
+    isClean: changedCount === 0
+  };
+}
+
+async function getProjectRuntime(project) {
+  const { stdout } = await execFileAsync('git', ['status', '--porcelain=v1', '--branch'], { cwd: project.path });
+  return {
+    ...project,
+    git: parseGitStatus(stdout)
+  };
+}
+
+async function getProjectsWithRuntime() {
+  const settings = loadProjectSettings();
+  const result = [];
+
+  for (const project of settings.projects) {
+    try {
+      result.push(await getProjectRuntime(project));
+    } catch (error) {
+      result.push({
+        ...project,
+        git: {
+          currentBranch: 'unknown',
+          upstream: '',
+          ahead: 0,
+          behind: 0,
+          changedCount: 0,
+          isClean: false,
+          error: error.stderr?.trim() || error.message
+        }
+      });
+    }
+  }
+
+  return result;
+}
+
+function findProjectById(projectId) {
+  const settings = loadProjectSettings();
+  return settings.projects.find((project) => project.id === projectId);
+}
+
+async function listProjectBranches(project) {
+  const [localResult, remoteResult] = await Promise.all([
+    execFileAsync('git', ['branch', '--format=%(refname:short)'], { cwd: project.path }),
+    execFileAsync('git', ['branch', '-r', '--format=%(refname:short)'], { cwd: project.path })
+  ]);
+
+  const localBranches = localResult.stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+  const remoteBranches = remoteResult.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.includes('->'));
+
+  return { localBranches, remoteBranches };
+}
+
+async function openProjectTerminal(project) {
+  if (process.platform === 'darwin') {
+    const escapedPath = project.path.replace(/"/g, '\\"');
+    await execFileAsync('osascript', [
+      '-e',
+      `tell application "Terminal" to do script "cd \\"${escapedPath}\\""`,
+      '-e',
+      'tell application "Terminal" to activate'
+    ]);
+    return;
+  }
+
+  throw new Error('当前仅实现了 macOS Terminal 打开能力');
+}
+
+async function checkoutProjectBranch(project, branch, isRemote) {
+  if (isRemote) {
+    const localName = branch.replace(/^origin\//, '');
+    await execFileAsync('git', ['checkout', '--track', branch], { cwd: project.path });
+    return localName;
+  }
+
+  await execFileAsync('git', ['checkout', branch], { cwd: project.path });
+  return branch;
+}
+
+async function commitProjectChanges(project, message) {
+  await execFileAsync('git', ['add', '-A'], { cwd: project.path });
+  await execFileAsync('git', ['commit', '-m', message], { cwd: project.path });
+}
+
+async function pushProjectChanges(project) {
+  await execFileAsync('git', ['push'], { cwd: project.path });
 }
 
 function serveStaticFile(reqPath, res) {
@@ -135,7 +342,6 @@ function serveStaticFile(reqPath, res) {
 
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-
     res.writeHead(200, { 'Content-Type': contentType });
     fs.createReadStream(filePath).pipe(res);
   });
@@ -177,6 +383,19 @@ function handleToolSettingsGet(res) {
   sendJson(res, 200, loadToolSettings());
 }
 
+async function handleProjectsGet(res) {
+  try {
+    const projects = await getProjectsWithRuntime();
+    sendJson(res, 200, { projects });
+  } catch (error) {
+    sendJson(res, 500, { message: `读取项目失败: ${error.message}` });
+  }
+}
+
+function handleProjectSettingsGet(res) {
+  sendJson(res, 200, loadProjectSettings());
+}
+
 async function handleDocSettingsUpdate(req, res) {
   try {
     const rawBody = await readRequestBody(req);
@@ -190,12 +409,7 @@ async function handleDocSettingsUpdate(req, res) {
 
     const settings = saveDocSettings({ rootPaths });
     const manifest = generate(settings.rootPaths);
-
-    sendJson(res, 200, {
-      message: '文档路径已更新',
-      settings,
-      manifestCount: manifest.length
-    });
+    sendJson(res, 200, { message: '文档路径已更新', settings, manifestCount: manifest.length });
   } catch (error) {
     sendJson(res, 500, { message: `文档路径更新失败: ${error.message}` });
   }
@@ -213,12 +427,126 @@ async function handleToolSettingsUpdate(req, res) {
     }
 
     const settings = saveToolSettings({ tools });
-    sendJson(res, 200, {
-      message: '工具配置已更新',
-      settings
-    });
+    sendJson(res, 200, { message: '工具配置已更新', settings });
   } catch (error) {
     sendJson(res, 500, { message: `工具配置更新失败: ${error.message}` });
+  }
+}
+
+async function handleProjectSettingsUpdate(req, res) {
+  try {
+    const rawBody = await readRequestBody(req);
+    const payload = rawBody ? JSON.parse(rawBody) : {};
+    const projects = Array.isArray(payload.projects) ? payload.projects : [];
+
+    const validatedProjects = await normalizeAndValidateProjects(projects);
+    const settings = saveProjectSettings({ projects: validatedProjects });
+    sendJson(res, 200, { message: '项目配置已更新', settings });
+  } catch (error) {
+    sendJson(res, 400, { message: error.stderr?.trim() || error.message });
+  }
+}
+
+async function handleProjectBranches(req, res, requestUrl) {
+  try {
+    const projectId = requestUrl.searchParams.get('id');
+    const project = findProjectById(projectId);
+    if (!project) {
+      sendJson(res, 404, { message: '未找到项目' });
+      return;
+    }
+
+    const branches = await listProjectBranches(project);
+    sendJson(res, 200, branches);
+  } catch (error) {
+    sendJson(res, 500, { message: error.stderr?.trim() || error.message });
+  }
+}
+
+async function handleProjectOpenTerminal(req, res) {
+  try {
+    const rawBody = await readRequestBody(req);
+    const payload = rawBody ? JSON.parse(rawBody) : {};
+    const project = findProjectById(payload.id);
+    if (!project) {
+      sendJson(res, 404, { message: '未找到项目' });
+      return;
+    }
+
+    await openProjectTerminal(project);
+    sendJson(res, 200, { message: '终端已打开' });
+  } catch (error) {
+    sendJson(res, 500, { message: error.stderr?.trim() || error.message });
+  }
+}
+
+async function handleProjectCheckout(req, res) {
+  try {
+    const rawBody = await readRequestBody(req);
+    const payload = rawBody ? JSON.parse(rawBody) : {};
+    const project = findProjectById(payload.id);
+    const branch = String(payload.branch || '').trim();
+    const isRemote = Boolean(payload.isRemote);
+
+    if (!project) {
+      sendJson(res, 404, { message: '未找到项目' });
+      return;
+    }
+
+    if (!branch) {
+      sendJson(res, 400, { message: '缺少分支名' });
+      return;
+    }
+
+    const currentBranch = await checkoutProjectBranch(project, branch, isRemote);
+    const runtime = await getProjectRuntime(project);
+    sendJson(res, 200, { message: `已切换到 ${currentBranch}`, project: runtime });
+  } catch (error) {
+    sendJson(res, 500, { message: error.stderr?.trim() || error.message });
+  }
+}
+
+async function handleProjectCommit(req, res) {
+  try {
+    const rawBody = await readRequestBody(req);
+    const payload = rawBody ? JSON.parse(rawBody) : {};
+    const project = findProjectById(payload.id);
+    const message = String(payload.message || '').trim();
+
+    if (!project) {
+      sendJson(res, 404, { message: '未找到项目' });
+      return;
+    }
+
+    if (!message) {
+      sendJson(res, 400, { message: '请输入 commit message' });
+      return;
+    }
+
+    await commitProjectChanges(project, message);
+    const runtime = await getProjectRuntime(project);
+    sendJson(res, 200, { message: 'Commit 成功', project: runtime });
+  } catch (error) {
+    sendJson(res, 500, { message: error.stderr?.trim() || error.message });
+  }
+}
+
+async function handleProjectPush(req, res) {
+  try {
+    const rawBody = await readRequestBody(req);
+    const payload = rawBody ? JSON.parse(rawBody) : {};
+    const project = findProjectById(payload.id);
+
+    if (!project) {
+      sendJson(res, 404, { message: '未找到项目' });
+      return;
+    }
+
+    await pushProjectChanges(project);
+    const runtime = await getProjectRuntime(project);
+    sendJson(res, 200, { message: 'Push 成功', project: runtime });
+  } catch (error) {
+    sendJson(res, 500, { message: error.stderr?.trim() || error.message });
   }
 }
 
@@ -248,6 +576,46 @@ function createServer() {
 
     if (requestUrl.pathname === '/api/settings/tools' && req.method === 'POST') {
       handleToolSettingsUpdate(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/projects' && req.method === 'GET') {
+      handleProjectsGet(res);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/settings/projects' && req.method === 'GET') {
+      handleProjectSettingsGet(res);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/settings/projects' && req.method === 'POST') {
+      handleProjectSettingsUpdate(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/projects/branches' && req.method === 'GET') {
+      handleProjectBranches(req, res, requestUrl);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/projects/open-terminal' && req.method === 'POST') {
+      handleProjectOpenTerminal(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/projects/checkout' && req.method === 'POST') {
+      handleProjectCheckout(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/projects/commit' && req.method === 'POST') {
+      handleProjectCommit(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === '/api/projects/push' && req.method === 'POST') {
+      handleProjectPush(req, res);
       return;
     }
 

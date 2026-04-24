@@ -18,33 +18,63 @@
   </div>
   <div id="app">
     <header class="app-header">
-      <div class="eyebrow">Developer Workspace</div>
-      <h1>DT 本地开发平台</h1>
-      <p class="subtitle">把日常工具和本地文档整理进一个清晰、顺手、足够轻的工作台。</p>
-      <div class="header-meta">
-        <span><i class="fa-solid fa-book-open"></i> 文档目录集中管理</span>
-        <span><i class="fa-solid fa-bolt"></i> 常用命令一键触达</span>
-        <span><i class="fa-solid fa-layer-group"></i> 为后续扩展预留结构</span>
-      </div>
-    </header>
-
-    <main class="dashboard-grid">
-      <section class="panel tools-panel">
-        <div class="panel-header">
-          <div>
-            <div class="panel-kicker">Tools</div>
-            <h2><i class="fa-solid fa-screwdriver-wrench"></i> 常用工具</h2>
-          </div>
-          <div class="panel-actions tool-panel-actions">
+      <div class="header-topbar">
+        <div>
+          <div class="eyebrow">Developer Workspace</div>
+          <h1>DT 本地开发平台</h1>
+          <p class="subtitle">把全局工具、项目操作与文档入口整理进一个统一工作台。</p>
+          <div class="header-actions">
+            <button type="button" id="project-add-trigger" class="ghost-button"><i class="fa-solid fa-folder-plus"></i><span>新增项目</span></button>
+            <button type="button" id="project-settings-trigger" class="ghost-button"><i class="fa-solid fa-diagram-project"></i><span>管理项目</span></button>
             <button type="button" id="tool-settings-trigger" class="ghost-button">
               <i class="fa-solid fa-pen-to-square"></i>
               <span>管理工具</span>
             </button>
+            <button type="button" id="doc-settings-trigger" class="ghost-button">
+              <i class="fa-solid fa-sliders"></i>
+              <span>配置路径</span>
+            </button>
           </div>
         </div>
-        <div id="tools-grid" class="tools-grid">
-            <!-- 工具按钮将渲染到这里 -->
+      </div>
+      <div class="workspace-toolbar panel">
+        <div class="toolbar-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="workspace-search-input" placeholder="搜索项目、分支、命令..." aria-label="搜索项目、分支、命令">
         </div>
+        <div class="toolbar-filters">
+          <button type="button" class="filter-chip">全部工作空间 <i class="fa-solid fa-chevron-down"></i></button>
+          <button type="button" class="filter-chip">全部状态 <i class="fa-solid fa-chevron-down"></i></button>
+          <button type="button" class="filter-chip">最近使用 <i class="fa-solid fa-chevron-down"></i></button>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel quick-tools-panel">
+      <div class="panel-header compact">
+        <div>
+          <div class="panel-kicker">Global Tools</div>
+          <h2><i class="fa-solid fa-bolt"></i> 常用工具</h2>
+        </div>
+        <p class="panel-desc">全局服务与命令入口，不绑定具体项目。</p>
+      </div>
+      <div id="tools-grid" class="tools-grid tools-grid-inline">
+          <!-- 工具按钮将渲染到这里 -->
+      </div>
+    </section>
+
+    <main class="dashboard-grid">
+      <section class="panel workspace-panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-kicker">Project Workspace</div>
+            <h2><i class="fa-solid fa-diagram-project"></i> 项目工作台</h2>
+          </div>
+          <div class="panel-actions">
+            <p class="panel-desc">项目级操作已接入：打开终端、切换分支、Commit、Push。</p>
+          </div>
+        </div>
+        <div id="workspace-container" class="workspace-section"></div>
       </section>
 
       <aside class="panel doc-panel full-width-panel">
@@ -53,12 +83,7 @@
             <div class="panel-kicker">Docs</div>
             <h2><i class="fa-solid fa-book-open"></i> 文档管理</h2>
           </div>
-          <div class="panel-actions">
-            <button type="button" id="doc-settings-trigger" class="ghost-button">
-              <i class="fa-solid fa-sliders"></i>
-              <span>配置路径</span>
-            </button>
-          </div>
+          
         </div>
         <div class="search-box">
           <i class="fa-solid fa-magnifying-glass"></i>
@@ -124,6 +149,84 @@
       <div class="modal-footer">
         <button type="button" id="tool-settings-cancel" class="ghost-button secondary">取消</button>
         <button type="button" id="tool-settings-save" class="primary-button">保存并刷新工具</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="project-settings-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-project-modal="true"></div>
+    <div class="modal-dialog project-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="project-settings-title">
+      <div class="modal-header">
+        <div>
+          <div class="panel-kicker">Projects</div>
+          <h3 id="project-settings-title">项目配置</h3>
+        </div>
+        <button type="button" id="project-settings-close" class="icon-button" aria-label="关闭">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="modal-desc">配置需要展示在首页的 Git 项目。保存时会自动校验路径是否为 Git 仓库。</p>
+      <div id="project-settings-list" class="project-settings-list"></div>
+      <button type="button" id="project-settings-add" class="ghost-button secondary">
+        <i class="fa-solid fa-plus"></i>
+        <span>新增项目</span>
+      </button>
+      <div id="project-settings-feedback" class="modal-feedback hidden"></div>
+      <div class="modal-footer">
+        <button type="button" id="project-settings-cancel" class="ghost-button secondary">取消</button>
+        <button type="button" id="project-settings-save" class="primary-button">保存并刷新项目</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="branch-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-branch-modal="true"></div>
+    <div class="modal-dialog branch-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="branch-modal-title">
+      <div class="modal-header">
+        <div>
+          <div class="panel-kicker">Branches</div>
+          <h3 id="branch-modal-title">切换分支</h3>
+        </div>
+        <button type="button" id="branch-modal-close" class="icon-button" aria-label="关闭">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="branch-modal-project" class="modal-note"></div>
+      <div class="branch-columns">
+        <div>
+          <div class="field-label">Local</div>
+          <div id="branch-local-list" class="branch-list"></div>
+        </div>
+        <div>
+          <div class="field-label">Remote</div>
+          <div id="branch-remote-list" class="branch-list"></div>
+        </div>
+      </div>
+      <div id="branch-feedback" class="modal-feedback hidden"></div>
+    </div>
+  </div>
+
+  <div id="commit-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-commit-modal="true"></div>
+    <div class="modal-dialog commit-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="commit-modal-title">
+      <div class="modal-header">
+        <div>
+          <div class="panel-kicker">Commit</div>
+          <h3 id="commit-modal-title">提交代码</h3>
+        </div>
+        <button type="button" id="commit-modal-close" class="icon-button" aria-label="关闭">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="commit-modal-project" class="modal-note"></div>
+      <label class="field-group">
+        <span class="field-label">Commit Message</span>
+        <textarea id="commit-message-input" class="commit-textarea" placeholder="例如：feat: add project git workspace panel"></textarea>
+      </label>
+      <div id="commit-feedback" class="modal-feedback hidden"></div>
+      <div class="modal-footer">
+        <button type="button" id="commit-cancel" class="ghost-button secondary">取消</button>
+        <button type="button" id="commit-submit" class="primary-button">执行 Commit</button>
       </div>
     </div>
   </div>

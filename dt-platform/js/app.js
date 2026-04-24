@@ -1,5 +1,10 @@
 let docSettingsDraft = [];
 let toolSettingsDraft = [];
+let projectSettingsDraft = [];
+let projectRuntimeData = [];
+let activeBranchProjectId = '';
+let activeCommitProjectId = '';
+
 const TOOL_ICON_OPTIONS = [
     { label: '终端', value: 'fa-solid fa-terminal' },
     { label: '浏览器', value: 'fa-solid fa-globe' },
@@ -24,78 +29,127 @@ function escapeHtml(text) {
         .replace(/'/g, '&#39;');
 }
 
-async function fetchDocSettings() {
-    const response = await fetch('./api/settings/docs', { cache: 'no-store' });
+async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(`读取配置失败: ${response.status}`);
+        throw new Error(result.message || `请求失败: ${response.status}`);
+    }
+    return result;
+}
+
+function getModalState(id) {
+    return document.getElementById(id);
+}
+
+function openModal(id) {
+    const modal = getModalState(id);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeModal(id) {
+    const modal = getModalState(id);
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function setFeedback(elementId, message, type = 'info') {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    if (!message) {
+        element.className = 'modal-feedback hidden';
+        element.textContent = '';
+        return;
     }
 
-    return response.json();
+    element.className = `modal-feedback ${type}`;
+    element.textContent = message;
+}
+
+async function fetchDocSettings() {
+    return fetchJson('./api/settings/docs', { cache: 'no-store' });
 }
 
 async function saveDocSettingsRequest(rootPaths) {
-    const response = await fetch('./api/settings/docs', {
+    return fetchJson('./api/settings/docs', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rootPaths })
     });
-
-    const result = await response.json();
-    if (!response.ok) {
-        throw new Error(result.message || '保存配置失败');
-    }
-
-    return result;
 }
 
 async function fetchToolSettings() {
-    const response = await fetch('./api/settings/tools', { cache: 'no-store' });
-    if (!response.ok) {
-        throw new Error(`读取工具配置失败: ${response.status}`);
-    }
-
-    return response.json();
+    return fetchJson('./api/settings/tools', { cache: 'no-store' });
 }
 
 async function saveToolSettingsRequest(tools) {
-    const response = await fetch('./api/settings/tools', {
+    return fetchJson('./api/settings/tools', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tools })
     });
-
-    const result = await response.json();
-    if (!response.ok) {
-        throw new Error(result.message || '保存工具配置失败');
-    }
-
-    return result;
 }
 
-function getSettingsElements() {
-    return {
-        modal: document.getElementById('doc-settings-modal'),
-        list: document.getElementById('doc-settings-list'),
-        feedback: document.getElementById('doc-settings-feedback')
-    };
+async function fetchProjectSettings() {
+    return fetchJson('./api/settings/projects', { cache: 'no-store' });
 }
 
-function getToolSettingsElements() {
-    return {
-        modal: document.getElementById('tool-settings-modal'),
-        list: document.getElementById('tool-settings-list'),
-        feedback: document.getElementById('tool-settings-feedback')
-    };
+async function saveProjectSettingsRequest(projects) {
+    return fetchJson('./api/settings/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projects })
+    });
+}
+
+async function fetchProjects() {
+    const result = await fetchJson('./api/projects', { cache: 'no-store' });
+    return result.projects || [];
+}
+
+async function openProjectTerminal(id) {
+    return fetchJson('./api/projects/open-terminal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+    });
+}
+
+async function fetchProjectBranches(id) {
+    return fetchJson(`./api/projects/branches?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
+}
+
+async function checkoutProjectBranch(id, branch, isRemote) {
+    return fetchJson('./api/projects/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, branch, isRemote })
+    });
+}
+
+async function commitProject(id, message) {
+    return fetchJson('./api/projects/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, message })
+    });
+}
+
+async function pushProject(id) {
+    return fetchJson('./api/projects/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+    });
 }
 
 function renderDocSettingsList() {
-    const { list } = getSettingsElements();
+    const list = document.getElementById('doc-settings-list');
     if (!list) return;
-
     list.innerHTML = '';
 
     docSettingsDraft.forEach((rootPath, index) => {
@@ -103,119 +157,58 @@ function renderDocSettingsList() {
         row.className = 'settings-row';
         row.innerHTML = `
             <div class="settings-index">${index + 1}</div>
-            <input
-                type="text"
-                class="settings-input"
-                value="${escapeHtml(rootPath)}"
-                placeholder="/Users/yourname/Documents/docs"
-                data-index="${index}"
-            >
-            <button type="button" class="icon-button danger" data-remove-index="${index}" aria-label="删除路径">
-                <i class="fa-solid fa-trash"></i>
-            </button>
+            <input type="text" class="settings-input" value="${escapeHtml(rootPath)}" data-index="${index}" placeholder="/Users/yourname/Documents/docs">
+            <button type="button" class="icon-button danger" data-remove-index="${index}" aria-label="删除路径"><i class="fa-solid fa-trash"></i></button>
         `;
         list.appendChild(row);
     });
 
     if (docSettingsDraft.length === 0) {
-        const emptyState = document.createElement('div');
-        emptyState.className = 'empty-hint';
-        emptyState.textContent = '请先添加至少一个本地目录路径';
-        list.appendChild(emptyState);
+        list.innerHTML = '<div class="empty-hint">请先添加至少一个本地目录路径</div>';
     }
-}
-
-function setDocSettingsFeedback(message, type = 'info') {
-    const { feedback } = getSettingsElements();
-    if (!feedback) return;
-
-    if (!message) {
-        feedback.textContent = '';
-        feedback.className = 'modal-feedback hidden';
-        return;
-    }
-
-    feedback.textContent = message;
-    feedback.className = `modal-feedback ${type}`;
-}
-
-function setToolSettingsFeedback(message, type = 'info') {
-    const { feedback } = getToolSettingsElements();
-    if (!feedback) return;
-
-    if (!message) {
-        feedback.textContent = '';
-        feedback.className = 'modal-feedback hidden';
-        return;
-    }
-
-    feedback.textContent = message;
-    feedback.className = `modal-feedback ${type}`;
-}
-
-function openDocSettingsModal() {
-    const { modal } = getSettingsElements();
-    if (!modal) return;
-
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
-}
-
-function closeDocSettingsModal() {
-    const { modal } = getSettingsElements();
-    if (!modal) return;
-
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-    setDocSettingsFeedback('');
 }
 
 function renderToolSettingsList() {
-    const { list } = getToolSettingsElements();
+    const list = document.getElementById('tool-settings-list');
     if (!list) return;
-
     list.innerHTML = '';
 
     toolSettingsDraft.forEach((tool, index) => {
-        const card = document.createElement('div');
-        card.className = 'tool-settings-card';
         const iconOptions = TOOL_ICON_OPTIONS.map((option) => `
             <button
                 type="button"
                 class="icon-choice${tool.icon === option.value ? ' is-selected' : ''}"
                 data-tool-icon-value="${escapeHtml(option.value)}"
                 data-tool-index="${index}"
-                aria-label="${escapeHtml(option.label)}"
                 title="${escapeHtml(option.label)}"
             >
                 <i class="${escapeHtml(option.value)}"></i>
             </button>
         `).join('');
+
+        const card = document.createElement('div');
+        card.className = 'tool-settings-card';
         card.innerHTML = `
             <div class="tool-settings-topbar">
                 <div class="tool-settings-badge">${index + 1}</div>
-                <button type="button" class="icon-button danger" data-tool-remove-index="${index}" aria-label="删除工具">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                <button type="button" class="icon-button danger" data-tool-remove-index="${index}" aria-label="删除工具"><i class="fa-solid fa-trash"></i></button>
             </div>
             <div class="tool-settings-grid">
                 <label class="field-group">
                     <span class="field-label">工具名称</span>
-                    <input type="text" class="settings-input" data-tool-field="name" data-tool-index="${index}" value="${escapeHtml(tool.name || '')}" placeholder="例如：Open WebUI">
+                    <input type="text" class="settings-input" data-tool-field="name" data-tool-index="${index}" value="${escapeHtml(tool.name || '')}">
                 </label>
                 <label class="field-group">
                     <span class="field-label">图标 class</span>
                     <div class="icon-input-row">
                         <span class="icon-preview"><i class="${escapeHtml(tool.icon || 'fa-solid fa-screwdriver-wrench')}"></i></span>
-                        <input type="text" class="settings-input" data-tool-field="icon" data-tool-index="${index}" value="${escapeHtml(tool.icon || '')}" placeholder="fa-solid fa-terminal">
+                        <input type="text" class="settings-input" data-tool-field="icon" data-tool-index="${index}" value="${escapeHtml(tool.icon || '')}">
                     </div>
-                    <div class="icon-choice-list">
-                        ${iconOptions}
-                    </div>
+                    <div class="icon-choice-list">${iconOptions}</div>
                 </label>
                 <label class="field-group tool-settings-command">
                     <span class="field-label">启动命令</span>
-                    <input type="text" class="settings-input" data-tool-field="command" data-tool-index="${index}" value="${escapeHtml(tool.command || '')}" placeholder="例如：npm run dev">
+                    <input type="text" class="settings-input" data-tool-field="command" data-tool-index="${index}" value="${escapeHtml(tool.command || '')}">
                 </label>
             </div>
         `;
@@ -223,197 +216,332 @@ function renderToolSettingsList() {
     });
 
     if (toolSettingsDraft.length === 0) {
-        const emptyState = document.createElement('div');
-        emptyState.className = 'empty-hint';
-        emptyState.textContent = '请先添加至少一个工具项';
-        list.appendChild(emptyState);
+        list.innerHTML = '<div class="empty-hint">请先添加至少一个工具项</div>';
     }
 }
 
-function openToolSettingsModal() {
-    const { modal } = getToolSettingsElements();
-    if (!modal) return;
+function renderProjectSettingsList() {
+    const list = document.getElementById('project-settings-list');
+    if (!list) return;
+    list.innerHTML = '';
 
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
+    projectSettingsDraft.forEach((project, index) => {
+        const card = document.createElement('div');
+        card.className = 'project-settings-card';
+        card.innerHTML = `
+            <div class="tool-settings-topbar">
+                <div class="tool-settings-badge">${index + 1}</div>
+                <button type="button" class="icon-button danger" data-project-remove-index="${index}" aria-label="删除项目"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <div class="project-settings-grid">
+                <label class="field-group">
+                    <span class="field-label">项目名称</span>
+                    <input type="text" class="settings-input" data-project-field="name" data-project-index="${index}" value="${escapeHtml(project.name || '')}" placeholder="例如：devTool">
+                </label>
+                <label class="field-group">
+                    <span class="field-label">工作空间</span>
+                    <input type="text" class="settings-input" data-project-field="workspace" data-project-index="${index}" value="${escapeHtml(project.workspace || '')}" placeholder="/Users/hua/Developer/workspace">
+                </label>
+                <label class="field-group project-settings-path">
+                    <span class="field-label">项目路径</span>
+                    <input type="text" class="settings-input" data-project-field="path" data-project-index="${index}" value="${escapeHtml(project.path || '')}" placeholder="/Users/hua/Developer/workspace/devTool">
+                </label>
+                <label class="field-group project-settings-path">
+                    <span class="field-label">说明</span>
+                    <input type="text" class="settings-input" data-project-field="description" data-project-index="${index}" value="${escapeHtml(project.description || '')}" placeholder="例如：本地效率平台项目">
+                </label>
+            </div>
+        `;
+        list.appendChild(card);
+    });
+
+    if (projectSettingsDraft.length === 0) {
+        list.innerHTML = '<div class="empty-hint">请先添加至少一个 Git 项目</div>';
+    }
 }
 
-function closeToolSettingsModal() {
-    const { modal } = getToolSettingsElements();
-    if (!modal) return;
+function buildProjectStatus(project) {
+    const git = project.git || {};
+    if (git.error) {
+        return '<span class="project-badge danger"><i class="fa-solid fa-triangle-exclamation"></i> 状态异常</span>';
+    }
 
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-    setToolSettingsFeedback('');
+    const parts = [];
+    parts.push(`<span class="project-badge"><i class="fa-solid fa-code-branch"></i> ${escapeHtml(git.currentBranch || 'unknown')}</span>`);
+    if (git.isClean) {
+        parts.push('<span class="project-badge success"><i class="fa-solid fa-circle-check"></i> clean</span>');
+    } else {
+        parts.push(`<span class="project-badge warn"><i class="fa-solid fa-pen"></i> ${git.changedCount || 0} changed</span>`);
+    }
+    if (git.ahead) {
+        parts.push(`<span class="project-badge"><i class="fa-solid fa-arrow-up"></i> ahead ${git.ahead}</span>`);
+    }
+    if (git.behind) {
+        parts.push(`<span class="project-badge"><i class="fa-solid fa-arrow-down"></i> behind ${git.behind}</span>`);
+    }
+    if (git.upstream) {
+        parts.push(`<span class="project-badge subtle"><i class="fa-solid fa-link"></i> ${escapeHtml(git.upstream)}</span>`);
+    }
+
+    return parts.join('');
 }
 
-async function handleOpenDocSettings() {
+function groupProjectsByWorkspace(projects) {
+    return projects.reduce((acc, project) => {
+        const workspace = project.workspace || '未分组工作空间';
+        if (!acc[workspace]) {
+            acc[workspace] = [];
+        }
+        acc[workspace].push(project);
+        return acc;
+    }, {});
+}
+
+function filterProjects(projects) {
+    const query = (document.getElementById('workspace-search-input')?.value || '').trim().toLowerCase();
+    if (!query) {
+        return projects;
+    }
+
+    return projects.filter((project) => {
+        return [
+            project.name,
+            project.description,
+            project.path,
+            project.workspace,
+            project.git?.currentBranch
+        ].some((value) => String(value || '').toLowerCase().includes(query));
+    });
+}
+
+function renderProjects() {
+    const container = document.getElementById('workspace-container');
+    if (!container) return;
+
+    const projects = filterProjects(projectRuntimeData);
+    container.innerHTML = '';
+
+    if (projects.length === 0) {
+        container.innerHTML = `
+            <div class="project-card project-card-empty">
+                <div class="empty-state-icon"><i class="fa-solid fa-folder-tree"></i></div>
+                <h3>还没有可展示的项目</h3>
+                <p>点击顶部“新增项目”或“管理项目”，把本地 Git 项目接入首页工作台。</p>
+            </div>
+        `;
+        return;
+    }
+
+    const groups = groupProjectsByWorkspace(projects);
+
+    Object.entries(groups).forEach(([workspace, items]) => {
+        const block = document.createElement('div');
+        block.className = 'workspace-block';
+        block.innerHTML = `<div class="workspace-title">${escapeHtml(workspace)}</div>`;
+
+        const list = document.createElement('div');
+        list.className = 'project-card-list';
+
+        items.forEach((project, index) => {
+            const card = document.createElement('article');
+            card.className = `project-card${index === 0 ? ' project-card-featured' : ''}`;
+            card.innerHTML = `
+                <div class="project-card-top">
+                    <div>
+                        <h3>${escapeHtml(project.name)}</h3>
+                        <p>${escapeHtml(project.description || project.path)}</p>
+                    </div>
+                    <div class="project-status${project.git?.isClean ? ' clean' : ''}">${escapeHtml(project.git?.currentBranch || 'unknown')}</div>
+                </div>
+                <div class="project-meta">${buildProjectStatus(project)}</div>
+                <div class="project-path">${escapeHtml(project.path)}</div>
+                <div class="project-actions">
+                    <button type="button" class="ghost-button secondary" data-project-open-terminal="${project.id}">打开终端</button>
+                    <button type="button" class="ghost-button secondary" data-project-branches="${project.id}">切换分支</button>
+                    <button type="button" class="ghost-button secondary" data-project-commit="${project.id}">Commit</button>
+                    <button type="button" class="ghost-button secondary" data-project-push="${project.id}">Push</button>
+                </div>
+            `;
+            list.appendChild(card);
+        });
+
+        block.appendChild(list);
+        container.appendChild(block);
+    });
+}
+
+async function refreshProjects() {
+    projectRuntimeData = await fetchProjects();
+    renderProjects();
+}
+
+async function openDocSettings() {
+    const settings = await fetchDocSettings();
+    docSettingsDraft = Array.isArray(settings.rootPaths) ? settings.rootPaths.slice() : [];
+    renderDocSettingsList();
+    setFeedback('doc-settings-feedback', '');
+    openModal('doc-settings-modal');
+}
+
+async function openToolSettings() {
+    const settings = await fetchToolSettings();
+    toolSettingsDraft = Array.isArray(settings.tools) ? settings.tools.map((tool) => ({ ...tool })) : [];
+    renderToolSettingsList();
+    setFeedback('tool-settings-feedback', '');
+    openModal('tool-settings-modal');
+}
+
+async function openProjectSettings(withNewItem = false) {
+    const settings = await fetchProjectSettings();
+    projectSettingsDraft = Array.isArray(settings.projects) ? settings.projects.map((project) => ({ ...project })) : [];
+    if (withNewItem) {
+        projectSettingsDraft.push({ id: '', name: '', workspace: '', path: '', description: '' });
+    }
+    renderProjectSettingsList();
+    setFeedback('project-settings-feedback', '');
+    openModal('project-settings-modal');
+}
+
+async function showBranchModal(projectId) {
+    activeBranchProjectId = projectId;
+    const project = projectRuntimeData.find((item) => item.id === projectId);
+    document.getElementById('branch-modal-project').textContent = project ? `${project.name} · ${project.path}` : '';
+    setFeedback('branch-feedback', '正在加载分支...', 'info');
+    openModal('branch-modal');
+
     try {
-        const settings = await fetchDocSettings();
-        docSettingsDraft = Array.isArray(settings.rootPaths) ? settings.rootPaths.slice() : [];
-        renderDocSettingsList();
-        setDocSettingsFeedback('');
-        openDocSettingsModal();
+        const branches = await fetchProjectBranches(projectId);
+        const localList = document.getElementById('branch-local-list');
+        const remoteList = document.getElementById('branch-remote-list');
+        localList.innerHTML = '';
+        remoteList.innerHTML = '';
+
+        branches.localBranches.forEach((branch) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'branch-item';
+            button.dataset.branch = branch;
+            button.textContent = branch;
+            localList.appendChild(button);
+        });
+
+        branches.remoteBranches.forEach((branch) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'branch-item';
+            button.dataset.branch = branch;
+            button.dataset.remote = 'true';
+            button.textContent = branch;
+            remoteList.appendChild(button);
+        });
+
+        setFeedback('branch-feedback', '');
     } catch (error) {
-        console.error(error);
-        alert(error.message || '读取文档路径失败');
+        setFeedback('branch-feedback', error.message, 'error');
     }
 }
 
-async function handleOpenToolSettings() {
-    try {
-        const settings = await fetchToolSettings();
-        toolSettingsDraft = Array.isArray(settings.tools)
-            ? settings.tools.map((tool) => ({
-                id: tool.id || '',
-                name: tool.name || '',
-                icon: tool.icon || 'fa-solid fa-screwdriver-wrench',
-                command: tool.command || ''
-            }))
-            : [];
-        renderToolSettingsList();
-        setToolSettingsFeedback('');
-        openToolSettingsModal();
-    } catch (error) {
-        console.error(error);
-        alert(error.message || '读取工具配置失败');
-    }
+function showCommitModal(projectId) {
+    activeCommitProjectId = projectId;
+    const project = projectRuntimeData.find((item) => item.id === projectId);
+    document.getElementById('commit-modal-project').textContent = project ? `${project.name} · ${project.path}` : '';
+    document.getElementById('commit-message-input').value = '';
+    setFeedback('commit-feedback', '');
+    openModal('commit-modal');
 }
 
 function bindDocSettingsEvents() {
-    const trigger = document.getElementById('doc-settings-trigger');
-    const closeButton = document.getElementById('doc-settings-close');
-    const cancelButton = document.getElementById('doc-settings-cancel');
-    const addButton = document.getElementById('doc-settings-add');
-    const saveButton = document.getElementById('doc-settings-save');
-    const { modal, list } = getSettingsElements();
-
-    trigger?.addEventListener('click', handleOpenDocSettings);
-    closeButton?.addEventListener('click', closeDocSettingsModal);
-    cancelButton?.addEventListener('click', closeDocSettingsModal);
-
-    modal?.addEventListener('click', (event) => {
-        if (event.target.dataset.closeModal === 'true') {
-            closeDocSettingsModal();
+    document.getElementById('doc-settings-trigger')?.addEventListener('click', async () => {
+        try {
+            await openDocSettings();
+        } catch (error) {
+            alert(error.message);
         }
     });
 
-    addButton?.addEventListener('click', () => {
+    document.getElementById('doc-settings-close')?.addEventListener('click', () => closeModal('doc-settings-modal'));
+    document.getElementById('doc-settings-cancel')?.addEventListener('click', () => closeModal('doc-settings-modal'));
+    document.getElementById('doc-settings-modal')?.addEventListener('click', (event) => {
+        if (event.target.dataset.closeModal === 'true') closeModal('doc-settings-modal');
+    });
+
+    document.getElementById('doc-settings-add')?.addEventListener('click', () => {
         docSettingsDraft.push('');
         renderDocSettingsList();
     });
 
-    list?.addEventListener('input', (event) => {
-        if (!event.target.classList.contains('settings-input')) {
-            return;
-        }
-
-        const index = Number(event.target.dataset.index);
-        docSettingsDraft[index] = event.target.value;
+    document.getElementById('doc-settings-list')?.addEventListener('input', (event) => {
+        if (!event.target.classList.contains('settings-input')) return;
+        docSettingsDraft[Number(event.target.dataset.index)] = event.target.value;
     });
 
-    list?.addEventListener('click', (event) => {
+    document.getElementById('doc-settings-list')?.addEventListener('click', (event) => {
         const button = event.target.closest('[data-remove-index]');
-        if (!button) {
-            return;
-        }
-
-        const index = Number(button.dataset.removeIndex);
-        docSettingsDraft.splice(index, 1);
+        if (!button) return;
+        docSettingsDraft.splice(Number(button.dataset.removeIndex), 1);
         renderDocSettingsList();
     });
 
-    saveButton?.addEventListener('click', async () => {
-        const rootPaths = docSettingsDraft
-            .map((rootPath) => rootPath.trim())
-            .filter(Boolean);
-
-        if (rootPaths.length === 0) {
-            setDocSettingsFeedback('至少需要保留一个本地路径', 'error');
+    document.getElementById('doc-settings-save')?.addEventListener('click', async () => {
+        const rootPaths = docSettingsDraft.map((item) => item.trim()).filter(Boolean);
+        if (!rootPaths.length) {
+            setFeedback('doc-settings-feedback', '至少需要保留一个本地路径', 'error');
             return;
         }
 
-        setDocSettingsFeedback('正在保存并刷新文档...', 'info');
-
+        setFeedback('doc-settings-feedback', '正在保存并刷新文档...', 'info');
         try {
             await saveDocSettingsRequest(rootPaths);
             await refreshDocManifest();
-            setDocSettingsFeedback('路径已保存，文档清单已刷新', 'success');
-            setTimeout(() => {
-                closeDocSettingsModal();
-            }, 500);
+            setFeedback('doc-settings-feedback', '路径已保存，文档清单已刷新', 'success');
+            setTimeout(() => closeModal('doc-settings-modal'), 500);
         } catch (error) {
-            console.error(error);
-            setDocSettingsFeedback(error.message || '保存失败，请稍后重试', 'error');
-        }
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-            closeDocSettingsModal();
+            setFeedback('doc-settings-feedback', error.message, 'error');
         }
     });
 }
 
 function bindToolSettingsEvents() {
-    const trigger = document.getElementById('tool-settings-trigger');
-    const closeButton = document.getElementById('tool-settings-close');
-    const cancelButton = document.getElementById('tool-settings-cancel');
-    const addButton = document.getElementById('tool-settings-add');
-    const saveButton = document.getElementById('tool-settings-save');
-    const { modal, list } = getToolSettingsElements();
-
-    trigger?.addEventListener('click', handleOpenToolSettings);
-    closeButton?.addEventListener('click', closeToolSettingsModal);
-    cancelButton?.addEventListener('click', closeToolSettingsModal);
-
-    modal?.addEventListener('click', (event) => {
-        if (event.target.dataset.closeToolModal === 'true') {
-            closeToolSettingsModal();
+    document.getElementById('tool-settings-trigger')?.addEventListener('click', async () => {
+        try {
+            await openToolSettings();
+        } catch (error) {
+            alert(error.message);
         }
     });
 
-    addButton?.addEventListener('click', () => {
-        toolSettingsDraft.push({
-            id: '',
-            name: '',
-            icon: 'fa-solid fa-screwdriver-wrench',
-            command: ''
-        });
+    document.getElementById('tool-settings-close')?.addEventListener('click', () => closeModal('tool-settings-modal'));
+    document.getElementById('tool-settings-cancel')?.addEventListener('click', () => closeModal('tool-settings-modal'));
+    document.getElementById('tool-settings-modal')?.addEventListener('click', (event) => {
+        if (event.target.dataset.closeToolModal === 'true') closeModal('tool-settings-modal');
+    });
+
+    document.getElementById('tool-settings-add')?.addEventListener('click', () => {
+        toolSettingsDraft.push({ id: '', name: '', icon: 'fa-solid fa-screwdriver-wrench', command: '' });
         renderToolSettingsList();
     });
 
-    list?.addEventListener('input', (event) => {
+    document.getElementById('tool-settings-list')?.addEventListener('input', (event) => {
         const input = event.target.closest('[data-tool-field]');
-        if (!input) {
-            return;
-        }
-
-        const index = Number(input.dataset.toolIndex);
-        const field = input.dataset.toolField;
-        toolSettingsDraft[index][field] = input.value;
+        if (!input) return;
+        toolSettingsDraft[Number(input.dataset.toolIndex)][input.dataset.toolField] = input.value;
     });
 
-    list?.addEventListener('click', (event) => {
+    document.getElementById('tool-settings-list')?.addEventListener('click', (event) => {
         const iconChoice = event.target.closest('[data-tool-icon-value]');
         if (iconChoice) {
-            const index = Number(iconChoice.dataset.toolIndex);
-            toolSettingsDraft[index].icon = iconChoice.dataset.toolIconValue;
+            toolSettingsDraft[Number(iconChoice.dataset.toolIndex)].icon = iconChoice.dataset.toolIconValue;
             renderToolSettingsList();
             return;
         }
 
         const button = event.target.closest('[data-tool-remove-index]');
-        if (!button) {
-            return;
-        }
-
-        const index = Number(button.dataset.toolRemoveIndex);
-        toolSettingsDraft.splice(index, 1);
+        if (!button) return;
+        toolSettingsDraft.splice(Number(button.dataset.toolRemoveIndex), 1);
         renderToolSettingsList();
     });
 
-    saveButton?.addEventListener('click', async () => {
+    document.getElementById('tool-settings-save')?.addEventListener('click', async () => {
         const tools = toolSettingsDraft
             .map((tool) => ({
                 id: String(tool.id || '').trim(),
@@ -423,36 +551,195 @@ function bindToolSettingsEvents() {
             }))
             .filter((tool) => tool.name && tool.command);
 
-        if (tools.length === 0) {
-            setToolSettingsFeedback('至少需要保留一个完整的工具项', 'error');
+        if (!tools.length) {
+            setFeedback('tool-settings-feedback', '至少需要保留一个完整的工具项', 'error');
             return;
         }
 
-        setToolSettingsFeedback('正在保存并刷新工具...', 'info');
-
+        setFeedback('tool-settings-feedback', '正在保存并刷新工具...', 'info');
         try {
             await saveToolSettingsRequest(tools);
             await refreshTools();
-            setToolSettingsFeedback('工具栏已更新', 'success');
-            setTimeout(() => {
-                closeToolSettingsModal();
-            }, 500);
+            setFeedback('tool-settings-feedback', '工具栏已更新', 'success');
+            setTimeout(() => closeModal('tool-settings-modal'), 500);
         } catch (error) {
-            console.error(error);
-            setToolSettingsFeedback(error.message || '保存工具配置失败', 'error');
-        }
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-            closeToolSettingsModal();
+            setFeedback('tool-settings-feedback', error.message, 'error');
         }
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initTools();
-    initDocTree('doc-tree-container');
+function bindProjectSettingsEvents() {
+    document.getElementById('project-add-trigger')?.addEventListener('click', async () => {
+        try {
+            await openProjectSettings(true);
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+
+    document.getElementById('project-settings-trigger')?.addEventListener('click', async () => {
+        try {
+            await openProjectSettings(false);
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+
+    document.getElementById('project-settings-close')?.addEventListener('click', () => closeModal('project-settings-modal'));
+    document.getElementById('project-settings-cancel')?.addEventListener('click', () => closeModal('project-settings-modal'));
+    document.getElementById('project-settings-modal')?.addEventListener('click', (event) => {
+        if (event.target.dataset.closeProjectModal === 'true') closeModal('project-settings-modal');
+    });
+
+    document.getElementById('project-settings-add')?.addEventListener('click', () => {
+        projectSettingsDraft.push({ id: '', name: '', workspace: '', path: '', description: '' });
+        renderProjectSettingsList();
+    });
+
+    document.getElementById('project-settings-list')?.addEventListener('input', (event) => {
+        const input = event.target.closest('[data-project-field]');
+        if (!input) return;
+        projectSettingsDraft[Number(input.dataset.projectIndex)][input.dataset.projectField] = input.value;
+    });
+
+    document.getElementById('project-settings-list')?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-project-remove-index]');
+        if (!button) return;
+        projectSettingsDraft.splice(Number(button.dataset.projectRemoveIndex), 1);
+        renderProjectSettingsList();
+    });
+
+    document.getElementById('project-settings-save')?.addEventListener('click', async () => {
+        const projects = projectSettingsDraft
+            .map((project) => ({
+                id: String(project.id || '').trim(),
+                name: String(project.name || '').trim(),
+                workspace: String(project.workspace || '').trim(),
+                path: String(project.path || '').trim(),
+                description: String(project.description || '').trim()
+            }))
+            .filter((project) => project.name && project.path);
+
+        if (!projects.length) {
+            setFeedback('project-settings-feedback', '至少需要保留一个完整的项目项', 'error');
+            return;
+        }
+
+        setFeedback('project-settings-feedback', '正在校验并保存项目...', 'info');
+        try {
+            await saveProjectSettingsRequest(projects);
+            await refreshProjects();
+            setFeedback('project-settings-feedback', '项目配置已更新', 'success');
+            setTimeout(() => closeModal('project-settings-modal'), 500);
+        } catch (error) {
+            setFeedback('project-settings-feedback', error.message, 'error');
+        }
+    });
+}
+
+function bindProjectActionEvents() {
+    document.getElementById('workspace-container')?.addEventListener('click', async (event) => {
+        const openButton = event.target.closest('[data-project-open-terminal]');
+        if (openButton) {
+            try {
+                await openProjectTerminal(openButton.dataset.projectOpenTerminal);
+            } catch (error) {
+                alert(error.message);
+            }
+            return;
+        }
+
+        const branchButton = event.target.closest('[data-project-branches]');
+        if (branchButton) {
+            await showBranchModal(branchButton.dataset.projectBranches);
+            return;
+        }
+
+        const commitButton = event.target.closest('[data-project-commit]');
+        if (commitButton) {
+            showCommitModal(commitButton.dataset.projectCommit);
+            return;
+        }
+
+        const pushButton = event.target.closest('[data-project-push]');
+        if (pushButton) {
+            pushButton.disabled = true;
+            try {
+                await pushProject(pushButton.dataset.projectPush);
+                await refreshProjects();
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                pushButton.disabled = false;
+            }
+        }
+    });
+
+    document.getElementById('workspace-search-input')?.addEventListener('input', renderProjects);
+}
+
+function bindBranchModalEvents() {
+    document.getElementById('branch-modal-close')?.addEventListener('click', () => closeModal('branch-modal'));
+    document.getElementById('branch-modal')?.addEventListener('click', async (event) => {
+        if (event.target.dataset.closeBranchModal === 'true') {
+            closeModal('branch-modal');
+            return;
+        }
+
+        const button = event.target.closest('[data-branch]');
+        if (!button) return;
+
+        setFeedback('branch-feedback', '正在切换分支...', 'info');
+        try {
+            await checkoutProjectBranch(activeBranchProjectId, button.dataset.branch, button.dataset.remote === 'true');
+            await refreshProjects();
+            setFeedback('branch-feedback', '分支切换成功', 'success');
+            setTimeout(() => closeModal('branch-modal'), 500);
+        } catch (error) {
+            setFeedback('branch-feedback', error.message, 'error');
+        }
+    });
+}
+
+function bindCommitModalEvents() {
+    document.getElementById('commit-modal-close')?.addEventListener('click', () => closeModal('commit-modal'));
+    document.getElementById('commit-cancel')?.addEventListener('click', () => closeModal('commit-modal'));
+    document.getElementById('commit-modal')?.addEventListener('click', (event) => {
+        if (event.target.dataset.closeCommitModal === 'true') closeModal('commit-modal');
+    });
+    document.getElementById('commit-submit')?.addEventListener('click', async () => {
+        const message = document.getElementById('commit-message-input').value.trim();
+        if (!message) {
+            setFeedback('commit-feedback', '请输入 commit message', 'error');
+            return;
+        }
+
+        setFeedback('commit-feedback', '正在执行 commit...', 'info');
+        try {
+            await commitProject(activeCommitProjectId, message);
+            await refreshProjects();
+            setFeedback('commit-feedback', 'Commit 成功', 'success');
+            setTimeout(() => closeModal('commit-modal'), 500);
+        } catch (error) {
+            setFeedback('commit-feedback', error.message, 'error');
+        }
+    });
+}
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    ['doc-settings-modal', 'tool-settings-modal', 'project-settings-modal', 'branch-modal', 'commit-modal']
+        .forEach(closeModal);
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await initTools();
+    await initDocTree('doc-tree-container');
+    await refreshProjects();
     bindDocSettingsEvents();
     bindToolSettingsEvents();
+    bindProjectSettingsEvents();
+    bindProjectActionEvents();
+    bindBranchModalEvents();
+    bindCommitModalEvents();
 });

@@ -57,6 +57,12 @@
         "path": "/Users/hua/Developer/workspace/devTool",
         "children": [
           {
+            "name": "README.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/devTool/README.md",
+            "ext": "md"
+          },
+          {
             "name": "init.md",
             "isDir": false,
             "path": "/Users/hua/Developer/workspace/devTool/init.md",

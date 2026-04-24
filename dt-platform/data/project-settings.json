@@ -1,0 +1,11 @@
+{
+  "projects": [
+    {
+      "id": "devtool",
+      "name": "devTool",
+      "path": "/Users/hua/Developer/workspace/devTool",
+      "workspace": "/Users/hua/Developer/workspace",
+      "description": "本地效率平台项目"
+    }
+  ]
+}
