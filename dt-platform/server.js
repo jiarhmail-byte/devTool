@@ -14,7 +14,7 @@ const HOST = '127.0.0.1';
 const ROOT_DIR = __dirname;
 const DEFAULT_PORT = Number(process.env.PORT || 8080);
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434/api/generate';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:e2b';
 const TOOL_SETTINGS_PATH = path.join(ROOT_DIR, 'data/tool-settings.json');
 const PROJECT_SETTINGS_PATH = path.join(ROOT_DIR, 'data/project-settings.json');
 
@@ -398,8 +398,8 @@ async function buildCommitGenerationPrompt(project) {
   return `
 你是一个资深工程师，负责为 Git 改动生成 commit message。
 请严格遵守以下规则：
-1. 只输出一行 commit message
-2. 优先使用 Conventional Commits 风格，例如 feat/fix/refactor/docs/chore
+1. 必须使用 Conventional Commits 风格，前缀使用英文（例如 feat/fix/refactor/docs/chore），但描述部分使用中文
+2. 只输出一行 commit message，格式为：前缀: 中文描述
 3. 内容要具体，不能空泛
 4. 不要输出解释、前后缀、引号、代码块
 

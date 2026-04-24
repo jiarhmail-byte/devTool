@@ -724,6 +724,28 @@ function bindCommitModalEvents() {
             setFeedback('commit-feedback', error.message, 'error');
         }
     });
+
+    document.getElementById('commit-ai-generate')?.addEventListener('click', async () => {
+        const aiButton = document.getElementById('commit-ai-generate');
+        const originalText = aiButton.innerHTML;
+        aiButton.disabled = true;
+        aiButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
+        setFeedback('commit-feedback', '正在使用 AI 生成 commit message...', 'info');
+
+        try {
+            const result = await fetchJson('./api/projects/commit-message', {
+                method: 'POST',
+                body: JSON.stringify({ id: activeCommitProjectId })
+            });
+            document.getElementById('commit-message-input').value = result.message;
+            setFeedback('commit-feedback', 'AI 生成成功', 'success');
+        } catch (error) {
+            setFeedback('commit-feedback', `AI 生成失败: ${error.message}`, 'error');
+        } finally {
+            aiButton.disabled = false;
+            aiButton.innerHTML = originalText;
+        }
+    });
 }
 
 document.addEventListener('keydown', (event) => {
