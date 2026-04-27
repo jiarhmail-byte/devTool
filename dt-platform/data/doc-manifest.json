@@ -5,6 +5,32 @@
     "path": "/Users/hua/Developer/workspace",
     "children": [
       {
+        "name": "chess",
+        "isDir": true,
+        "path": "/Users/hua/Developer/workspace/chess",
+        "children": [
+          {
+            "name": "webmind-chess",
+            "isDir": true,
+            "path": "/Users/hua/Developer/workspace/chess/webmind-chess",
+            "children": [
+              {
+                "name": "README.md",
+                "isDir": false,
+                "path": "/Users/hua/Developer/workspace/chess/webmind-chess/README.md",
+                "ext": "md"
+              },
+              {
+                "name": "README_project.md",
+                "isDir": false,
+                "path": "/Users/hua/Developer/workspace/chess/webmind-chess/README_project.md",
+                "ext": "md"
+              }
+            ]
+          }
+        ]
+      },
+      {
         "name": "cursorproject",
         "isDir": true,
         "path": "/Users/hua/Developer/workspace/cursorproject",
@@ -57,6 +83,12 @@
         "path": "/Users/hua/Developer/workspace/devTool",
         "children": [
           {
+            "name": "CLAUDE.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/devTool/CLAUDE.md",
+            "ext": "md"
+          },
+          {
             "name": "README.md",
             "isDir": false,
             "path": "/Users/hua/Developer/workspace/devTool/README.md",
@@ -88,6 +120,33 @@
         "isDir": true,
         "path": "/Users/hua/Developer/workspace/dev_tool",
         "children": [
+          {
+            "name": "docs",
+            "isDir": true,
+            "path": "/Users/hua/Developer/workspace/dev_tool/docs",
+            "children": [
+              {
+                "name": "superpowers",
+                "isDir": true,
+                "path": "/Users/hua/Developer/workspace/dev_tool/docs/superpowers",
+                "children": [
+                  {
+                    "name": "specs",
+                    "isDir": true,
+                    "path": "/Users/hua/Developer/workspace/dev_tool/docs/superpowers/specs",
+                    "children": [
+                      {
+                        "name": "2026-04-26-ai-design.md",
+                        "isDir": false,
+                        "path": "/Users/hua/Developer/workspace/dev_tool/docs/superpowers/specs/2026-04-26-ai-design.md",
+                        "ext": "md"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           {
             "name": "init.md",
             "isDir": false,

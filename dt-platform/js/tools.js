@@ -54,11 +54,13 @@ function renderTools() {
     const card = document.createElement('button');
     card.className = 'tool-card';
     card.type = 'button';
+    const isZshrc = tool.id === 'edit-zshrc';
+    card.setAttribute('data-zshrc', isZshrc ? '' : null);
     card.innerHTML = `
       <span class="tool-icon"><i class="${tool.icon}"></i></span>
       <span class="tool-content">
         <span class="tool-name">${tool.name}</span>
-        <span class="tool-command">${tool.command}</span>
+        <span class="tool-command">${isZshrc ? '编辑配置' : tool.command}</span>
       </span>
     `;
 
@@ -68,10 +70,26 @@ function renderTools() {
 }
 
 function executeTool(tool) {
+  // 编辑.zshrc 的工具打开配置窗口
+  if (tool.id === 'edit-zshrc') {
+    openZshrcConfig(tool);
+    return;
+  }
   const os = navigator.platform.toLowerCase();
   const protocols = tool.osProtocols || buildToolProtocols(tool.command);
   const protocol = protocols[os] || protocols[os.includes('win') ? 'win32' : 'darwin'] || tool.fallback;
   window.location.href = protocol;
+}
+
+async function openZshrcConfig(tool) {
+  try {
+    const result = await fetchJson('./api/config/zshrc');
+    document.getElementById('zshrc-content').value = result.content || '';
+    openModal('zshrc-modal');
+  } catch (error) {
+    alert(`加载失败：${error.message}`);
+    openModal('zshrc-modal');
+  }
 }
 
 async function initTools() {

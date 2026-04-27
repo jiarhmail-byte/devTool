@@ -509,6 +509,11 @@ body {
   text-overflow: ellipsis;
 }
 
+.tool-card[data-zshrc] .tool-command {
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .tool-arrow {
   display: inline-flex;
   align-items: center;
@@ -1057,6 +1062,28 @@ body {
 }
 
 .commit-textarea:focus {
+  box-shadow:
+    inset 0 0 0 1px rgba(29, 107, 82, 0.28),
+    0 0 0 4px rgba(29, 107, 82, 0.08);
+  background: #ffffff;
+}
+
+.config-textarea {
+  width: 100%;
+  min-height: 450px;
+  padding: 14px;
+  border: none;
+  border-radius: 16px;
+  background: rgba(244, 248, 246, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(22, 35, 31, 0.08);
+  font: inherit;
+  color: var(--text-primary);
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+}
+
+.config-textarea:focus {
   box-shadow:
     inset 0 0 0 1px rgba(29, 107, 82, 0.28),
     0 0 0 4px rgba(29, 107, 82, 0.08);

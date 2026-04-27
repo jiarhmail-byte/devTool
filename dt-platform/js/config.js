@@ -26,6 +26,18 @@ const APP_CONFIG = {
         linux: "gnome-terminal -- docker compose up -d"
       },
       fallback: "cmd /c docker compose up -d"
+    },
+    {
+      id: "edit-zshrc",
+      name: "编辑 .zshrc",
+      icon: "fa-solid fa-file-code",
+      command: "open -e ~/.zshrc",
+      osProtocols: {
+        darwin: "open -e ~/.zshrc",
+        win32: "notepad %USERPROFILE%\\.zshrc",
+        linux: "gedit ~/.zshrc"
+      },
+      fallback: "open ~/.zshrc"
     }
   ],
   docs: {

@@ -7,6 +7,14 @@
       "command": "open-webui serve",
       "osProtocols": null,
       "fallback": ""
+    },
+    {
+      "id": "edit-zshrc",
+      "name": "编辑 .zshrc",
+      "icon": "fa-solid fa-file-code",
+      "command": "open -e ~/.zshrc",
+      "osProtocols": null,
+      "fallback": ""
     }
   ]
 }

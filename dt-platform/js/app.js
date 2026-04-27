@@ -391,6 +391,18 @@ async function openToolSettings() {
     openModal('tool-settings-modal');
 }
 
+async function openZshrcConfig() {
+    try {
+        const result = await fetchJson('./api/config/zshrc');
+        document.getElementById('zshrc-content').value = result.content || '';
+        setFeedback('zshrc-feedback', '');
+        openModal('zshrc-modal');
+    } catch (error) {
+        setFeedback('zshrc-feedback', `加载失败：${error.message}`, 'error');
+        openModal('zshrc-modal');
+    }
+}
+
 async function openProjectSettings(withNewItem = false) {
     const settings = await fetchProjectSettings();
     projectSettingsDraft = Array.isArray(settings.projects) ? settings.projects.map((project) => ({ ...project })) : [];
@@ -438,6 +450,18 @@ async function showBranchModal(projectId) {
         setFeedback('branch-feedback', '');
     } catch (error) {
         setFeedback('branch-feedback', error.message, 'error');
+    }
+}
+
+async function openZshrcConfig() {
+    try {
+        const result = await fetchJson('./api/config/zshrc');
+        document.getElementById('zshrc-content').value = result.content || '';
+        setFeedback('zshrc-feedback', '');
+        openModal('zshrc-modal');
+    } catch (error) {
+        setFeedback('zshrc-feedback', `加载失败：${error.message}`, 'error');
+        openModal('zshrc-modal');
     }
 }
 
@@ -564,6 +588,14 @@ function bindToolSettingsEvents() {
             setTimeout(() => closeModal('tool-settings-modal'), 500);
         } catch (error) {
             setFeedback('tool-settings-feedback', error.message, 'error');
+        }
+    });
+
+    document.getElementById('zshrc-config-trigger')?.addEventListener('click', async () => {
+        try {
+            await openZshrcConfig();
+        } catch (error) {
+            alert(error.message);
         }
     });
 }
@@ -748,9 +780,77 @@ function bindCommitModalEvents() {
     });
 }
 
+function bindZshrcConfigEvents() {
+    document.getElementById('zshrc-close')?.addEventListener('click', () => closeModal('zshrc-modal'));
+    document.getElementById('zshrc-cancel')?.addEventListener('click', () => {
+        closeModal('zshrc-modal');
+        setFeedback('zshrc-feedback', '');
+    });
+    document.getElementById('zshrc-save')?.addEventListener('click', async () => {
+        const saveButton = document.getElementById('zshrc-save');
+        const originalText = saveButton.innerHTML;
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 保存中...';
+
+        try {
+            const content = document.getElementById('zshrc-content').value;
+            await fetchJson('./api/config/zshrc', {
+                method: 'POST',
+                body: JSON.stringify({ content })
+            });
+            setFeedback('zshrc-feedback', '保存成功！在终端执行 source ~/.zshrc 使配置生效', 'success');
+            closeModal('zshrc-modal');
+        } catch (error) {
+            setFeedback('zshrc-feedback', `保存失败：${error.message}`, 'error');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.innerHTML = originalText;
+        }
+    });
+    document.getElementById('zshrc-load')?.addEventListener('click', async () => {
+        try {
+            const result = await fetchJson('./api/config/zshrc');
+            document.getElementById('zshrc-content').value = result.content || '';
+            setFeedback('zshrc-feedback', '重新加载成功', 'success');
+        } catch (error) {
+            setFeedback('zshrc-feedback', `加载失败：${error.message}`, 'error');
+        }
+    });
+}
+
+function bindZshrcConfigEvents() {
+    document.getElementById('zshrc-close')?.addEventListener('click', () => closeModal('zshrc-modal'));
+    document.getElementById('zshrc-cancel')?.addEventListener('click', () => {
+        closeModal('zshrc-modal');
+        setFeedback('zshrc-feedback', '');
+    });
+    document.getElementById('zshrc-load')?.addEventListener('click', openZshrcConfig);
+    document.getElementById('zshrc-save')?.addEventListener('click', async () => {
+        const saveButton = document.getElementById('zshrc-save');
+        const originalText = saveButton.innerHTML;
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 保存中...';
+
+        try {
+            const content = document.getElementById('zshrc-content').value;
+            await fetchJson('./api/config/zshrc', {
+                method: 'POST',
+                body: JSON.stringify({ content })
+            });
+            setFeedback('zshrc-feedback', '保存成功！在终端执行 source ~/.zshrc 使配置生效', 'success');
+            closeModal('zshrc-modal');
+        } catch (error) {
+            setFeedback('zshrc-feedback', `保存失败：${error.message}`, 'error');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.innerHTML = originalText;
+        }
+    });
+}
+
 document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
-    ['doc-settings-modal', 'tool-settings-modal', 'project-settings-modal', 'branch-modal', 'commit-modal']
+    ['doc-settings-modal', 'tool-settings-modal', 'project-settings-modal', 'zshrc-modal', 'branch-modal', 'commit-modal']
         .forEach(closeModal);
 });
 
@@ -764,4 +864,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindProjectActionEvents();
     bindBranchModalEvents();
     bindCommitModalEvents();
+    bindZshrcConfigEvents();
 });

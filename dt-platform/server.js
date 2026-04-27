@@ -12,9 +12,9 @@ const {
 
 const HOST = '127.0.0.1';
 const ROOT_DIR = __dirname;
-const DEFAULT_PORT = Number(process.env.PORT || 8080);
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434/api/generate';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:e2b';
+const DEFAULT_PORT = Number(process.env.PORT || 8082);
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:8082/v1/chat/completions';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'Qwen3.5-35B-A3B-Uncensored-HauhauCS-Aggressive-MLX-mxfp4';
 const TOOL_SETTINGS_PATH = path.join(ROOT_DIR, 'data/tool-settings.json');
 const PROJECT_SETTINGS_PATH = path.join(ROOT_DIR, 'data/project-settings.json');
 
@@ -660,6 +660,28 @@ async function handleProjectCommitMessage(req, res) {
   }
 }
 
+async function handleZshrcGet(req, res) {
+  try {
+    const zshrcPath = path.join(process.env.HOME || '', '.zshrc');
+    const content = fs.readFileSync(zshrcPath, 'utf-8');
+    sendJson(res, 200, { content });
+  } catch (error) {
+    sendJson(res, 500, { message: error.message });
+  }
+}
+
+async function handleZshrcUpdate(req, res) {
+  try {
+    const rawBody = await readRequestBody(req);
+    const payload = rawBody ? JSON.parse(rawBody) : {};
+    const zshrcPath = path.join(process.env.HOME || '', '.zshrc');
+    fs.writeFileSync(zshrcPath, payload.content || '', 'utf-8');
+    sendJson(res, 200, { message: '保存成功' });
+  } catch (error) {
+    sendJson(res, 500, { message: error.message });
+  }
+}
+
 async function handleProjectPush(req, res) {
   try {
     const rawBody = await readRequestBody(req);
@@ -683,73 +705,109 @@ function createServer() {
   return http.createServer((req, res) => {
     const requestUrl = new URL(req.url, `http://${req.headers.host || `${HOST}:${DEFAULT_PORT}`}`);
 
-    if (requestUrl.pathname === '/api/doc') {
-      serveMarkdownFile(requestUrl.searchParams.get('path'), res);
-      return;
+    // API routes - must be checked before static files
+    if (requestUrl.pathname.startsWith('/api/')) {
+      // AI commit message generation
+      if (requestUrl.pathname === '/api/ai-commit' && req.method === 'POST') {
+        handleProjectCommitMessage(req, res);
+        return;
+      }
+
+      // Commit message generation
+      if (requestUrl.pathname === '/api/projects/commit-message' && req.method === 'POST') {
+        handleProjectCommitMessage(req, res);
+        return;
+      }
+
+      // Push project
+      if (requestUrl.pathname === '/api/projects/push' && req.method === 'POST') {
+        handleProjectPush(req, res);
+        return;
+      }
+
+      // Checkout branch
+      if (requestUrl.pathname === '/api/projects/checkout' && req.method === 'POST') {
+        handleProjectCheckout(req, res);
+        return;
+      }
+
+      // Open terminal
+      if (requestUrl.pathname === '/api/projects/open-terminal' && req.method === 'POST') {
+        handleProjectOpenTerminal(req, res);
+        return;
+      }
+
+      // Project branches
+      if (requestUrl.pathname === '/api/projects/branches' && req.method === 'GET') {
+        handleProjectBranches(req, res, requestUrl);
+        return;
+      }
+
+      // Project settings
+      if (requestUrl.pathname === '/api/settings/projects' && req.method === 'GET') {
+        handleProjectSettingsGet(res);
+        return;
+      }
+      if (requestUrl.pathname === '/api/settings/projects' && req.method === 'POST') {
+        handleProjectSettingsUpdate(req, res);
+        return;
+      }
+
+      // Projects list
+      if (requestUrl.pathname === '/api/projects' && req.method === 'GET') {
+        handleProjectsGet(res);
+        return;
+      }
+
+      // Tool settings
+      if (requestUrl.pathname === '/api/settings/tools' && req.method === 'GET') {
+        handleToolSettingsGet(res);
+        return;
+      }
+      if (requestUrl.pathname === '/api/settings/tools' && req.method === 'POST') {
+        handleToolSettingsUpdate(req, res);
+        return;
+      }
+
+      // Doc settings
+      if (requestUrl.pathname === '/api/settings/docs' && req.method === 'GET') {
+        handleDocSettingsGet(res);
+        return;
+      }
+      if (requestUrl.pathname === '/api/settings/docs' && req.method === 'POST') {
+        handleDocSettingsUpdate(req, res);
+        return;
+      }
+
+      // Doc file
+      if (requestUrl.pathname === '/api/doc') {
+        serveMarkdownFile(requestUrl.searchParams.get('path'), res);
+        return;
+      }
+
+      // Zshrc config
+      if (requestUrl.pathname === '/api/config/zshrc' && req.method === 'GET') {
+        handleZshrcGet(req, res);
+        return;
+      }
+      if (requestUrl.pathname === '/api/config/zshrc' && req.method === 'POST') {
+        handleZshrcUpdate(req, res);
+        return;
+      }
     }
 
-    if (requestUrl.pathname === '/api/settings/docs' && req.method === 'GET') {
-      handleDocSettingsGet(res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/settings/docs' && req.method === 'POST') {
-      handleDocSettingsUpdate(req, res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/settings/tools' && req.method === 'GET') {
-      handleToolSettingsGet(res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/settings/tools' && req.method === 'POST') {
-      handleToolSettingsUpdate(req, res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/projects' && req.method === 'GET') {
-      handleProjectsGet(res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/settings/projects' && req.method === 'GET') {
-      handleProjectSettingsGet(res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/settings/projects' && req.method === 'POST') {
-      handleProjectSettingsUpdate(req, res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/projects/branches' && req.method === 'GET') {
-      handleProjectBranches(req, res, requestUrl);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/projects/open-terminal' && req.method === 'POST') {
-      handleProjectOpenTerminal(req, res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/projects/checkout' && req.method === 'POST') {
-      handleProjectCheckout(req, res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/projects/commit' && req.method === 'POST') {
-      handleProjectCommit(req, res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/projects/commit-message' && req.method === 'POST') {
-      handleProjectCommitMessage(req, res);
-      return;
-    }
-
-    if (requestUrl.pathname === '/api/projects/push' && req.method === 'POST') {
-      handleProjectPush(req, res);
+    // Proxy Ollama gateway API
+    if (requestUrl.pathname === '/v1/chat/completions' && req.method === 'POST') {
+      readRequestBody(req).then((body) => {
+        const payload = body ? JSON.parse(body) : {};
+        postJson(OLLAMA_URL, payload).then((data) => {
+          sendJson(res, 200, data);
+        }).catch((error) => {
+          sendJson(res, 404, { message: `本地 LLM 请求失败：${error.message}` });
+        });
+      }).catch((error) => {
+        sendJson(res, 400, { message: `请求体解析失败：${error.message}` });
+      });
       return;
     }
 
