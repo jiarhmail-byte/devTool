@@ -421,14 +421,11 @@ async function generateCommitMessage(project) {
   const prompt = await buildCommitGenerationPrompt(project);
   const result = await postJson(OLLAMA_URL, {
     model: OLLAMA_MODEL,
-    prompt,
-    stream: false,
-    options: {
-      temperature: 0.2
-    }
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.2
   });
 
-  const message = normalizeCommitMessage(result.response);
+  const message = normalizeCommitMessage(result.choices?.[0]?.message?.content);
   if (!message) {
     throw new Error('本地 LLM 未返回有效的 commit message');
   }
@@ -710,6 +707,12 @@ function createServer() {
       // AI commit message generation
       if (requestUrl.pathname === '/api/ai-commit' && req.method === 'POST') {
         handleProjectCommitMessage(req, res);
+        return;
+      }
+
+      // Commit
+      if (requestUrl.pathname === '/api/projects/commit' && req.method === 'POST') {
+        handleProjectCommit(req, res);
         return;
       }
 
