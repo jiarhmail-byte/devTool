@@ -156,6 +156,93 @@
         ]
       },
       {
+        "name": "flutter-ai",
+        "isDir": true,
+        "path": "/Users/hua/Developer/workspace/flutter-ai",
+        "children": [
+          {
+            "name": "README.md",
+            "isDir": false,
+            "path": "/Users/hua/Developer/workspace/flutter-ai/README.md",
+            "ext": "md"
+          },
+          {
+            "name": "docs",
+            "isDir": true,
+            "path": "/Users/hua/Developer/workspace/flutter-ai/docs",
+            "children": [
+              {
+                "name": "superpowers",
+                "isDir": true,
+                "path": "/Users/hua/Developer/workspace/flutter-ai/docs/superpowers",
+                "children": [
+                  {
+                    "name": "plans",
+                    "isDir": true,
+                    "path": "/Users/hua/Developer/workspace/flutter-ai/docs/superpowers/plans",
+                    "children": [
+                      {
+                        "name": "2026-04-27-flutter-ai-app.md",
+                        "isDir": false,
+                        "path": "/Users/hua/Developer/workspace/flutter-ai/docs/superpowers/plans/2026-04-27-flutter-ai-app.md",
+                        "ext": "md"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "specs",
+                    "isDir": true,
+                    "path": "/Users/hua/Developer/workspace/flutter-ai/docs/superpowers/specs",
+                    "children": [
+                      {
+                        "name": "2026-04-27-flutter-ai-design.md",
+                        "isDir": false,
+                        "path": "/Users/hua/Developer/workspace/flutter-ai/docs/superpowers/specs/2026-04-27-flutter-ai-design.md",
+                        "ext": "md"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "ios",
+            "isDir": true,
+            "path": "/Users/hua/Developer/workspace/flutter-ai/ios",
+            "children": [
+              {
+                "name": "Runner",
+                "isDir": true,
+                "path": "/Users/hua/Developer/workspace/flutter-ai/ios/Runner",
+                "children": [
+                  {
+                    "name": "Assets.xcassets",
+                    "isDir": true,
+                    "path": "/Users/hua/Developer/workspace/flutter-ai/ios/Runner/Assets.xcassets",
+                    "children": [
+                      {
+                        "name": "LaunchImage.imageset",
+                        "isDir": true,
+                        "path": "/Users/hua/Developer/workspace/flutter-ai/ios/Runner/Assets.xcassets/LaunchImage.imageset",
+                        "children": [
+                          {
+                            "name": "README.md",
+                            "isDir": false,
+                            "path": "/Users/hua/Developer/workspace/flutter-ai/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md",
+                            "ext": "md"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
         "name": "hua",
         "isDir": true,
         "path": "/Users/hua/Developer/workspace/hua",

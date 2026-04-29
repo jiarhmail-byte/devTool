@@ -6,6 +6,13 @@
       "path": "/Users/hua/Developer/workspace/devTool",
       "workspace": "/Users/hua/Developer/workspace",
       "description": "本地效率平台项目"
+    },
+    {
+      "id": "weather-mcp",
+      "name": "weather-mcp",
+      "path": "/Users/hua/Developer/ai/agents/weather",
+      "workspace": "/Users/hua/Developer/ai/agents",
+      "description": "weather-mcp"
     }
   ]
 }

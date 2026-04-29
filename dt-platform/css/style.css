@@ -794,11 +794,13 @@ body {
 .modal-dialog {
   position: relative;
   width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 72px);
   margin: 72px auto;
   padding: 22px;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 28px 80px rgba(11, 34, 26, 0.2);
+  overflow-y: auto;
 }
 
 .tool-modal-dialog {
